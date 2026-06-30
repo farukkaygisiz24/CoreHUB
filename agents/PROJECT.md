@@ -179,6 +179,10 @@ should always describe the _current_ reality.
 
 ## 13. Changelog
 
+- **2026-06-30** — **3-day backfill on bootstrap.** When store has fewer than
+  `INGEST_BOOTSTRAP_UNTIL` (50) articles, ingest scans up to 30 items/feed within
+  `INGEST_MAX_AGE_DAYS` (3) by RSS `publishedAt`, clusters sorted newest-first.
+  Normal mode stays 6 items/feed, 6/run.
 - **2026-06-30** — **Ingest cadence: 10 min / 6 articles.** `vercel.json` cron
   `*/10 * * * *`; default `INGEST_MAX_PER_RUN=6`. Hobby plan still needs external
   cron (cron-job.org) for 10-minute intervals.

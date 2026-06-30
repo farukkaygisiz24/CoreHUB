@@ -10,9 +10,7 @@ import { extractRssImage, pickSourceImage } from "@/lib/images/source";
 import { loadArticles, saveArticles } from "@/lib/store";
 import { isCategory, type Article, type ArticleSource } from "@/lib/types";
 
-const MAX_PER_FEED = 6;
 const MAX_TRENDS = 5;
-const MAX_AGE_DAYS = 3;
 
 const parser = new Parser({
   timeout: 15000,
@@ -41,9 +39,46 @@ export interface IngestResult {
   messages: string[];
 }
 
-function maxArticlesPerRun(): number {
+function maxAgeDays(): number {
+  const n = Number(process.env.INGEST_MAX_AGE_DAYS ?? "3");
+  return Number.isFinite(n) && n > 0 ? n : 3;
+}
+
+/** Depoda az haber varken son N günü daha geniş tarar (ilk kurulum / backfill). */
+function isBootstrap(existingCount: number): boolean {
+  const until = Number(process.env.INGEST_BOOTSTRAP_UNTIL ?? "50");
+  return existingCount < until;
+}
+
+function maxPerFeed(existingCount: number): number {
+  if (isBootstrap(existingCount)) {
+    const n = Number(process.env.INGEST_BOOTSTRAP_PER_FEED ?? "30");
+    return Number.isFinite(n) && n > 0 ? n : 30;
+  }
+  const n = Number(process.env.INGEST_MAX_PER_FEED ?? "6");
+  return Number.isFinite(n) && n > 0 ? n : 6;
+}
+
+function maxArticlesPerRun(existingCount: number): number {
+  if (isBootstrap(existingCount)) {
+    const n = Number(process.env.INGEST_BOOTSTRAP_MAX_PER_RUN ?? "6");
+    return Number.isFinite(n) && n > 0 ? n : 6;
+  }
   const n = Number(process.env.INGEST_MAX_PER_RUN ?? "6");
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 6;
+  return Number.isFinite(n) && n > 0 ? n : 6;
+}
+
+function withinAgeWindow(isoDate: string | undefined, maxDays: number): boolean {
+  if (!isoDate) return true;
+  const ageDays = (Date.now() - new Date(isoDate).getTime()) / 86400000;
+  return ageDays <= maxDays;
+}
+
+function newestPublishedAt(cluster: Candidate[]): string {
+  return cluster
+    .map((c) => c.publishedAt)
+    .sort()
+    .reverse()[0]!;
 }
 
 function idFor(links: string[]): string {
@@ -67,25 +102,28 @@ function cleanBody(body: string): string {
   return paras.join("\n\n");
 }
 
-async function collectCandidates(feeds: Feed[], seen: Set<string>, log: string[]): Promise<Candidate[]> {
+async function collectCandidates(
+  feeds: Feed[],
+  seen: Set<string>,
+  log: string[],
+  opts: { maxPerFeed: number; maxAgeDays: number },
+): Promise<Candidate[]> {
   const out: Candidate[] = [];
   const seenLinks = new Set<string>();
 
   for (const feed of feeds) {
     try {
       const parsed = await parser.parseURL(feed.url);
-      const items = (parsed.items || []).slice(0, MAX_PER_FEED);
       let count = 0;
 
-      for (const item of items) {
+      for (const item of parsed.items || []) {
+        if (count >= opts.maxPerFeed) break;
+
         const link = item.link?.trim();
         if (!link || seenLinks.has(link)) continue;
         if (seen.has(idFor([link]))) continue;
 
-        if (item.isoDate) {
-          const ageDays = (Date.now() - new Date(item.isoDate).getTime()) / 86400000;
-          if (ageDays > MAX_AGE_DAYS) continue;
-        }
+        if (!withinAgeWindow(item.isoDate, opts.maxAgeDays)) continue;
 
         const content = stripHtml(
           item.contentSnippet || item.content || item.summary || item.title || "",
@@ -104,7 +142,7 @@ async function collectCandidates(feeds: Feed[], seen: Set<string>, log: string[]
         });
         count++;
       }
-      log.push(`[${feed.name}] ${count} aday haber`);
+      log.push(`[${feed.name}] ${count} aday haber (${opts.maxAgeDays}g pencere)`);
     } catch (err) {
       log.push(`[${feed.name}] feed okunamadı: ${(err as Error).message}`);
     }
@@ -114,14 +152,23 @@ async function collectCandidates(feeds: Feed[], seen: Set<string>, log: string[]
 
 export async function runIngest(): Promise<IngestResult> {
   const messages: string[] = [];
-  const maxRun = maxArticlesPerRun();
-  messages.push(`CoreHUB ingest başlıyor (max ${maxRun}/run)...`);
-
-  const ai = getAIProvider();
-  messages.push(`AI sağlayıcı: ${ai.name}`);
 
   const existing = await loadArticles();
   const seen = new Set(existing.map((a) => a.id));
+
+  const ageDays = maxAgeDays();
+  const perFeed = maxPerFeed(existing.length);
+  const maxRun = maxArticlesPerRun(existing.length);
+  const bootstrap = isBootstrap(existing.length);
+
+  messages.push(
+    bootstrap
+      ? `CoreHUB ingest (backfill modu: son ${ageDays} gün, feed başı ${perFeed}, max ${maxRun}/run, depo ${existing.length})...`
+      : `CoreHUB ingest başlıyor (max ${maxRun}/run, son ${ageDays} gün)...`,
+  );
+
+  const ai = getAIProvider();
+  messages.push(`AI sağlayıcı: ${ai.name}`);
 
   const trends = await fetchTrendingTopics(MAX_TRENDS);
   const trendFeeds: Feed[] = trends.map((topic) => ({
@@ -131,7 +178,10 @@ export async function runIngest(): Promise<IngestResult> {
   }));
   if (trends.length) messages.push(`Google Trends TR: ${trends.join(", ")}`);
 
-  const candidates = await collectCandidates([...FEEDS, ...trendFeeds], seen, messages);
+  const candidates = await collectCandidates([...FEEDS, ...trendFeeds], seen, messages, {
+    maxPerFeed: perFeed,
+    maxAgeDays: ageDays,
+  });
   messages.push(`Toplam ${candidates.length} aday haber toplandı.`);
 
   const clusters = clusterItems(candidates);
@@ -142,6 +192,10 @@ export async function runIngest(): Promise<IngestResult> {
     const j = Math.floor(Math.random() * (i + 1));
     [singleClusters[i], singleClusters[j]] = [singleClusters[j], singleClusters[i]];
   }
+  const byRecency = (a: Candidate[], b: Candidate[]) =>
+    new Date(newestPublishedAt(b)).getTime() - new Date(newestPublishedAt(a)).getTime();
+  multiClusters.sort(byRecency);
+  singleClusters.sort(byRecency);
   const orderedClusters = [...multiClusters, ...singleClusters];
   messages.push(`${clusters.length} küme oluştu (${multi} tanesi çok-kaynaklı).`);
 
