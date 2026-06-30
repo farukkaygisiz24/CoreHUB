@@ -11,7 +11,7 @@ function blobToken(): string | undefined {
   return process.env.BLOB_READ_WRITE_TOKEN;
 }
 
-function useBlob(): boolean {
+function hasBlobStorage(): boolean {
   return Boolean(blobToken());
 }
 
@@ -78,7 +78,7 @@ async function saveToFile(articles: Article[]): Promise<void> {
 }
 
 export async function loadArticles(): Promise<Article[]> {
-  if (useBlob()) {
+  if (hasBlobStorage()) {
     const blobArticles = await loadFromBlob();
     if (blobArticles.length > 0) return blobArticles;
     // İlk deploy: git'teki seed JSON'dan oku (henüz blob boşsa)
@@ -88,7 +88,7 @@ export async function loadArticles(): Promise<Article[]> {
 }
 
 export async function saveArticles(articles: Article[]): Promise<void> {
-  if (useBlob()) return saveToBlob(articles);
+  if (hasBlobStorage()) return saveToBlob(articles);
   return saveToFile(articles);
 }
 

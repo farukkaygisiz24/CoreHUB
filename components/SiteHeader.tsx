@@ -18,8 +18,6 @@ function CategoryMenu() {
 
   const active = CATEGORIES.find((c) => pathname === `/${c.slug}`);
 
-  useEffect(() => setOpen(false), [pathname]);
-
   useEffect(() => {
     return () => {
       if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -156,7 +154,7 @@ export default function SiteHeader() {
           </div>
           <nav aria-label="Site navigasyonu" className="flex items-center justify-center gap-2">
             <NavHomeLink pathname={pathname} />
-            <CategoryMenu />
+            <CategoryMenu key={pathname} />
           </nav>
         </div>
 
@@ -174,7 +172,7 @@ export default function SiteHeader() {
 
           <nav aria-label="Site navigasyonu" className="flex items-center justify-center gap-2">
             <NavHomeLink pathname={pathname} />
-            <CategoryMenu />
+            <CategoryMenu key={pathname} />
           </nav>
 
           <div className="flex items-center justify-end gap-3 justify-self-end">

@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 import { GlassSwitch } from "@/components/ui/glass-switch";
 
 type Theme = "light" | "dark";
+
+const THEME_CHANGE = "corehub-theme-change";
 
 function getTheme(): Theme {
   const stored = localStorage.getItem("theme");
@@ -15,21 +17,31 @@ function getTheme(): Theme {
 function applyTheme(theme: Theme) {
   document.documentElement.classList.toggle("dark", theme === "dark");
   localStorage.setItem("theme", theme);
+  window.dispatchEvent(new Event(THEME_CHANGE));
+}
+
+function subscribeTheme(onStoreChange: () => void) {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  mq.addEventListener("change", onStoreChange);
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(THEME_CHANGE, onStoreChange);
+  return () => {
+    mq.removeEventListener("change", onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(THEME_CHANGE, onStoreChange);
+  };
 }
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("dark");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setTheme(getTheme());
-    setMounted(true);
-  }, []);
+  const theme = useSyncExternalStore(subscribeTheme, getTheme, () => "dark" as Theme);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   function onCheckedChange(checked: boolean) {
-    const next: Theme = checked ? "dark" : "light";
-    applyTheme(next);
-    setTheme(next);
+    applyTheme(checked ? "dark" : "light");
   }
 
   return (
