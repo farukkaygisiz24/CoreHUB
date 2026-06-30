@@ -5,17 +5,15 @@ export const THEME_COLORS = {
 
 export type Theme = "light" | "dark";
 
-/** iOS Safari status bar + alt toolbar rengi */
+/** iOS Safari status bar + alt toolbar rengi (medya sorgulu çiftleri kaldırıp tek meta bırakır). */
 export function setThemeColorMeta(theme: Theme) {
   if (typeof document === "undefined") return;
   const color = theme === "dark" ? THEME_COLORS.dark : THEME_COLORS.light;
-  let meta = document.querySelector('meta[name="theme-color"]');
-  if (!meta) {
-    meta = document.createElement("meta");
-    meta.setAttribute("name", "theme-color");
-    document.head.appendChild(meta);
-  }
+  document.querySelectorAll('meta[name="theme-color"]').forEach((el) => el.remove());
+  const meta = document.createElement("meta");
+  meta.setAttribute("name", "theme-color");
   meta.setAttribute("content", color);
+  document.head.appendChild(meta);
 }
 
 export function applyTheme(theme: Theme) {

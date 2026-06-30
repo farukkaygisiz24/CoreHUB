@@ -54,8 +54,8 @@ category is passed only as a hint/fallback.
                      ├─ collect candidates from ALL feeds (dedupe by URL hash + age window)
                      ├─ clusterItems() + mergeSimilarClusters() (lib/sources/cluster.ts)
                      ├─ skip if sameEventTitles() matches an existing article
-                     ├─ per cluster: fulltext fetch → LLM synthesize → one balanced article
-                     ├─ image: source RSS/og:image first, Unsplash fallback
+                     ├─ per cluster: resolve Google News links → fulltext fetch → LLM synthesize → one balanced article
+                     ├─ image: publisher og:image first (skip Google News logo placeholders), Unsplash fallback
                      └─ save (local: data/articles.json | production: Vercel Blob)
                      ↓
 Entry points:
@@ -77,6 +77,7 @@ Pages use ISR (`revalidate = 300`) and cron calls `revalidatePath` after each ru
 | `lib/sources/trends.ts` | `fetchTrendingTopics()` — Google Trends TR RSS → trending topic titles. Used to build dynamic "Gündem" Google News feeds in ingest. |
 | `lib/ai/types.ts` | `AIProvider` contract (`synthesize`) + `SynthesizeInput{items[]}`/`SynthesizeOutput` (incl. `divergenceNote`). |
 | `lib/sources/cluster.ts` | `clusterItems()`, `mergeSimilarClusters()`, `sameEventTitles()`, `matchEventKey()` — same-event grouping + cross-run dedup by title. |
+| `lib/sources/googlenews.ts` | Resolves `news.google.com/rss/articles/…` redirect links to publisher URLs via `google-news-url-decoder` (batchexecute). Used before fulltext/image fetch. |
 | `lib/ingest/run.ts` | **Ingest core** (`runIngest()`). Used by `scripts/ingest.ts` and `/api/cron/ingest`. |
 | `app/api/cron/ingest/route.ts` | Production cron endpoint. Auth: `Bearer CRON_SECRET` or Vercel cron headers (`vercel-cron` UA + `x-vercel-cron-schedule`). `maxDuration=300`. |
 | `lib/ai/index.ts` | `getAIProvider()` — ordered `FallbackProvider` from `AI_CHAIN` env. |
@@ -206,6 +207,16 @@ should always describe the _current_ reality.
 
 ## 13. Changelog
 
+- **2026-07-01** — **Safari chrome theming fix.** Removed media-query `theme-color`
+  metas (Safari locked to system pref, ignored in-app toggle). Single meta updated
+  by blocking script + `ThemeBoot`; `viewportFit: cover`; `--shell-bg` on html with
+  `100dvh` for overscroll/safe-area gaps.
+- **2026-07-01** — **Google News image fix.** RSS items from Google News link to
+  `news.google.com/…` wrappers whose og:image is the Google News logo. Ingest now
+  resolves these to publisher URLs (`lib/sources/googlenews.ts` + `google-news-url-decoder`)
+  before fulltext/image fetch; `pickSourceImage` prefers page og:image over RSS and
+  filters Google/gstatic placeholder thumbnails. RSS `<source>` tag used for credit name.
+  Existing articles in Blob keep old images until re-ingested.
 - **2026-07-01** — **Cron auth fallback.** `/api/cron/ingest` accepts Vercel cron
   requests (`vercel-cron` User-Agent + `x-vercel-cron-schedule`) when Bearer header
   is missing. ESLint fixes: `ThemeToggle` → `useSyncExternalStore`; `useBlob` renamed

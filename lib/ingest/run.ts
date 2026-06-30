@@ -4,6 +4,7 @@ import { FEEDS, googleNewsSearchFeed, type Feed } from "@/lib/sources/feeds";
 import { fetchTrendingTopics } from "@/lib/sources/trends";
 import { clusterItems, mergeSimilarClusters, representativeTitle, sameEventTitles } from "@/lib/sources/cluster";
 import { fetchArticlePage } from "@/lib/sources/fulltext";
+import { resolveArticleUrls } from "@/lib/sources/googlenews";
 import { getAIProvider } from "@/lib/ai";
 import { fetchImage } from "@/lib/images/unsplash";
 import { extractRssImage, pickSourceImage } from "@/lib/images/source";
@@ -88,6 +89,21 @@ function idFor(links: string[]): string {
 
 function stripHtml(s: string): string {
   return s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Google News RSS'teki `<source>` veya başlık sonundaki yayıncı adı. */
+function publisherFromItem(item: { title?: string; source?: unknown }, feedName: string): string {
+  const src = item.source;
+  if (typeof src === "string" && src.trim()) return src.trim();
+  if (src && typeof src === "object") {
+    const obj = src as { _?: string; title?: string };
+    const name = obj._?.trim() || obj.title?.trim();
+    if (name) return name;
+  }
+  const title = item.title || "";
+  const dash = title.lastIndexOf(" - ");
+  if (dash > 20 && title.length - dash < 45) return title.slice(dash + 3).trim();
+  return feedName;
 }
 
 const FILLER_RE =
@@ -181,7 +197,7 @@ async function collectCandidates(
           title: item.title || "",
           content,
           link,
-          sourceName: feed.name,
+          sourceName: publisherFromItem(item, feed.name),
           publishedAt: item.isoDate || new Date().toISOString(),
           ...(rssImage ? { imageUrl: rssImage } : {}),
         });
@@ -268,8 +284,14 @@ export async function runIngest(): Promise<IngestResult> {
     }
 
     try {
-      const pages = await Promise.all(cluster.map((c) => fetchArticlePage(c.link)));
-      const items = cluster.map((c, i) => ({
+      const resolvedLinks = await resolveArticleUrls(cluster.map((c) => c.link));
+      const resolvedCluster = cluster.map((c, i) => ({
+        ...c,
+        link: resolvedLinks[i] ?? c.link,
+      }));
+
+      const pages = await Promise.all(resolvedCluster.map((c) => fetchArticlePage(c.link)));
+      const items = resolvedCluster.map((c, i) => ({
         sourceName: c.sourceName,
         title: c.title,
         content: pages[i].text ?? c.content,
@@ -284,11 +306,11 @@ export async function runIngest(): Promise<IngestResult> {
         continue;
       }
 
-      const sourceImg = pickSourceImage(cluster, pages.map((p) => p.imageUrl));
+      const sourceImg = pickSourceImage(resolvedCluster, pages.map((p) => p.imageUrl));
       const unsplash = sourceImg ? null : await fetchImage(out.imageQuery);
 
       const category = isCategory(out.category) ? out.category : "gundem";
-      const sources: ArticleSource[] = cluster.map((c) => ({
+      const sources: ArticleSource[] = resolvedCluster.map((c) => ({
         name: c.sourceName,
         url: c.link,
       }));

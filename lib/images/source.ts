@@ -11,6 +11,24 @@ type RssItem = Item & {
 
 const SKIP_RE = /(?:logo|icon|avatar|sprite|pixel|1x1|spacer|emoji|badge)/i;
 
+/** Google News / gstatic placeholder görselleri — gerçek haber fotoğrafı değil. */
+const GOOGLE_PLACEHOLDER_RE =
+  /(?:news\.google\.com|gstatic\.com\/gnews|google_news|googleusercontent\.com\/-DR60)/i;
+
+export function isPlaceholderNewsImage(url: string): boolean {
+  if (!url || GOOGLE_PLACEHOLDER_RE.test(url)) return true;
+  try {
+    const u = new URL(url);
+    if (/\.googleusercontent\.com$/i.test(u.hostname) && /=w(?:16|24|32|48|64|256)(?:[/?]|$)/.test(url)) {
+      return true;
+    }
+    if (SKIP_RE.test(u.pathname)) return true;
+  } catch {
+    return true;
+  }
+  return false;
+}
+
 export function normalizeImageUrl(raw: string, pageUrl?: string): string | null {
   const trimmed = raw.trim();
   if (!trimmed || trimmed.startsWith("data:")) return null;
@@ -19,6 +37,7 @@ export function normalizeImageUrl(raw: string, pageUrl?: string): string | null 
     const url = pageUrl ? new URL(trimmed, pageUrl) : new URL(trimmed);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
     if (SKIP_RE.test(url.pathname)) return null;
+    if (isPlaceholderNewsImage(url.href)) return null;
     return url.href;
   } catch {
     return null;
@@ -79,15 +98,16 @@ export function pickSourceImage(
   candidates: { imageUrl?: string; sourceName: string; link: string }[],
   pageImages: (string | null | undefined)[],
 ): SourceImagePick | null {
-  for (const c of candidates) {
-    if (c.imageUrl) {
-      return { url: c.imageUrl, credit: c.sourceName, link: c.link };
-    }
-  }
+  // Yayıncı sayfası og:image öncelikli (Google News RSS thumbnail'ları genelde logo)
   for (let i = 0; i < pageImages.length; i++) {
     const url = pageImages[i];
-    if (url && candidates[i]) {
+    if (url && candidates[i] && !isPlaceholderNewsImage(url)) {
       return { url, credit: candidates[i].sourceName, link: candidates[i].link };
+    }
+  }
+  for (const c of candidates) {
+    if (c.imageUrl && !isPlaceholderNewsImage(c.imageUrl)) {
+      return { url: c.imageUrl, credit: c.sourceName, link: c.link };
     }
   }
   return null;

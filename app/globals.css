@@ -92,6 +92,7 @@
 }
 
 :root {
+  --shell-bg: #f8fafc;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -126,26 +127,33 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+:root.dark {
+  --shell-bg: #0f172a;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply text-foreground;
+    background-color: transparent;
   }
   html {
     @apply font-sans;
-    background-color: #f8fafc;
+    min-height: 100%;
+    min-height: 100dvh;
+    background-color: var(--shell-bg);
     color-scheme: light;
   }
   html.dark {
-    background-color: #0f172a;
     color-scheme: dark;
   }
 }
 
 .app-shell {
-  min-height: 100vh;
+  min-height: 100%;
+  min-height: 100dvh;
 }
 
 /* Fixed to viewport — gradient does not stretch with page scroll */
