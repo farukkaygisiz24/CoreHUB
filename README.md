@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CoreHUB
 
-## Getting Started
+Otomatik Türkçe haber derlemesi — RSS kaynakları, AI sentez, Vercel'de yayın.
 
-First, run the development server:
+## Yerel geliştirme
 
 ```bash
+cp .env.example .env.local   # anahtarları doldur
+npm install
+npm run ingest               # data/articles.json güncellenir
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Vercel deploy
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **GitHub:** repoyu `farukkaygisiz24/CoreHUB` olarak push et.
+2. [vercel.com](https://vercel.com) → Import Git Repository → CoreHUB.
+3. **Storage → Blob** oluştur (Read/Write token otomatik eklenir).
+4. **Environment Variables** (Production + Preview):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   | Değişken | Açıklama |
+   |----------|----------|
+   | `GROQ_API_KEY` | Groq API |
+   | `AI_CHAIN` | `groq:llama-3.3-70b-versatile,groq:llama-3.1-8b-instant` |
+   | `UNSPLASH_ACCESS_KEY` | Görsel yedek (opsiyonel) |
+   | `CRON_SECRET` | Rastgele uzun string — cron koruması |
+   | `BLOB_READ_WRITE_TOKEN` | Blob storage (Vercel otomatik verebilir) |
+   | `INGEST_MAX_PER_RUN` | `3` (serverless süre sınırı için) |
 
-## Learn More
+5. Deploy. Cron `vercel.json` ile **6 saatte bir** `/api/cron/ingest` çalıştırır.
 
-To learn more about Next.js, take a look at the following resources:
+### Cron'u manuel test
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://SENIN-DOMAIN.vercel.app/api/cron/ingest
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Plan notu
 
-## Deploy on Vercel
+- **Hobby:** Cron en fazla günde 1 kez — daha sık ingest için Pro veya harici cron (cron-job.org) ile yukarıdaki URL'yi saatlik ping'le.
+- **Pro:** `maxDuration=300` ile run başına ~3 haber güvenli; `INGEST_MAX_PER_RUN` ile ayarla.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Detaylı mimari: [`agents/PROJECT.md`](agents/PROJECT.md).
