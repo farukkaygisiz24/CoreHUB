@@ -213,7 +213,7 @@ Başarılı yanıt örneği:
 | Plan | Cron sıklığı | Öneri |
 |------|--------------|-------|
 | **Hobby** | Günde en fazla ~1 kez (10 dk schedule çalışmaz) | [cron-job.org](https://cron-job.org) ile **10 dk** ping + `INGEST_MAX_PER_RUN=6` |
-| **Pro** | 10 dakikada bir (`*/10 * * * *`) | `maxDuration=300` ile run başına 6 haber |
+| **Pro** | **10 dakikada bir** (`*/10 * * * *`) — ekstra cron servisi gerekmez | `INGEST_MAX_PER_RUN=6`, backfill için `INGEST_BOOTSTRAP_MAX_PER_RUN=12`, `maxDuration=300` |
 
 ---
 
