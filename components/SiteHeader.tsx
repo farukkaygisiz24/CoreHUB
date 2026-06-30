@@ -116,8 +116,14 @@ function NavHomeLink({ pathname }: { pathname: string }) {
 
 export default function SiteHeader() {
   const pathname = usePathname();
-  const today = new Date().toLocaleDateString("tr-TR", {
+  const now = new Date();
+  const today = now.toLocaleDateString("tr-TR", {
     weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const mobileDate = now.toLocaleDateString("tr-TR", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -127,27 +133,28 @@ export default function SiteHeader() {
     <header className="sticky top-0 z-50 px-4 pt-3">
       <GlassCard
         glowEffect={false}
-        className="header-bar mx-auto max-w-5xl overflow-visible rounded-2xl px-4 py-3 backdrop-blur-2xl"
+        fillHeight={false}
+        className="header-bar mx-auto max-w-5xl overflow-visible rounded-2xl px-3 py-3 backdrop-blur-2xl sm:px-4"
       >
         {/* Mobil */}
-        <div className="flex flex-col gap-3 md:hidden">
-          <div className="flex items-center justify-between gap-3">
-            <Link href="/" className="group flex shrink-0 items-center gap-2">
-              <span className="block h-7 w-1 rounded-full bg-linear-to-b from-cyan-500 to-purple-600" />
-              <span className="text-lg font-black uppercase tracking-tight header-bar-text">
+        <div className="flex flex-col gap-2.5 md:hidden">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            <Link href="/" className="group flex min-w-0 items-center gap-2 overflow-hidden">
+              <span className="block h-7 w-1 shrink-0 rounded-full bg-linear-to-b from-cyan-500 to-purple-600" />
+              <span className="truncate text-base font-black uppercase tracking-tight header-bar-text">
                 Core
                 <span className="bg-linear-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent dark:from-cyan-400 dark:to-purple-500">
                   HUB
                 </span>
               </span>
             </Link>
-            <div className="flex shrink-0 items-center gap-3">
+            <div className="flex shrink-0 items-center gap-1.5">
               <time
-                dateTime={new Date().toISOString().slice(0, 10)}
+                dateTime={now.toISOString().slice(0, 10)}
                 suppressHydrationWarning
-                className="text-[11px] leading-tight header-bar-text-muted sm:text-xs"
+                className="whitespace-nowrap text-[10px] leading-none header-bar-text-muted"
               >
-                {today}
+                {mobileDate}
               </time>
               <ThemeToggle />
             </div>
@@ -177,7 +184,7 @@ export default function SiteHeader() {
 
           <div className="flex items-center justify-end gap-3 justify-self-end">
             <time
-              dateTime={new Date().toISOString().slice(0, 10)}
+              dateTime={now.toISOString().slice(0, 10)}
               suppressHydrationWarning
               className="text-xs header-bar-text-muted"
             >

@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { THEME_COLORS } from "@/lib/theme";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -12,7 +13,14 @@ export const metadata: Metadata = {
     "Teknoloji, yapay zeka, Türkiye gündemi ve spor haberlerinin otomatik, tarafsız derlemesi.",
 };
 
-const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})();`;
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: THEME_COLORS.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLORS.dark },
+  ],
+};
+
+const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);var c=d?'${THEME_COLORS.dark}':'${THEME_COLORS.light}';var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=c;else{var e=document.createElement('meta');e.name='theme-color';e.content=c;document.head.appendChild(e);}}catch(e){}})();`;
 
 export default function RootLayout({
   children,
