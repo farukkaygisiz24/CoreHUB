@@ -42,8 +42,8 @@ export interface IngestResult {
 }
 
 function maxArticlesPerRun(): number {
-  const n = Number(process.env.INGEST_MAX_PER_RUN ?? "12");
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 12;
+  const n = Number(process.env.INGEST_MAX_PER_RUN ?? "6");
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 6;
 }
 
 function idFor(links: string[]): string {

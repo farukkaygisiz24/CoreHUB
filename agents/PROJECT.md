@@ -179,6 +179,9 @@ should always describe the _current_ reality.
 
 ## 13. Changelog
 
+- **2026-06-30** — **Ingest cadence: 10 min / 6 articles.** `vercel.json` cron
+  `*/10 * * * *`; default `INGEST_MAX_PER_RUN=6`. Hobby plan still needs external
+  cron (cron-job.org) for 10-minute intervals.
 - **2026-06-30** — **8b JSON reliability fixes.** Real-run revealed many `json_validate_failed`
   errors on `llama-3.1-8b-instant` (the active fallback while 70b's daily quota is spent):
   (a) the model put unescaped double-quotes inside JSON string values, and (b) long body +

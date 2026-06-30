@@ -148,7 +148,7 @@ npm run dev       # http://localhost:3000
 | `UNSPLASH_ACCESS_KEY` | Hayır | Kaynak görseli yoksa Unsplash yedek |
 | `CRON_SECRET` | Production | Cron endpoint koruması; rastgele uzun string |
 | `BLOB_READ_WRITE_TOKEN` | Production | Vercel Blob token (depolama) |
-| `INGEST_MAX_PER_RUN` | Hayır | Tek çalışmada üretilecek max haber (varsayılan: 12, Vercel için 3 önerilir) |
+| `INGEST_MAX_PER_RUN` | Hayır | Tek çalışmada max haber (varsayılan **6**) |
 
 Şablon için: [`.env.example`](.env.example)
 
@@ -185,7 +185,7 @@ CoreHUB, Vercel üzerinde sunucusuz ortamda çalışacak şekilde yapılandırı
    GROQ_API_KEY=...
    AI_CHAIN=groq:llama-3.3-70b-versatile,groq:llama-3.1-8b-instant
    CRON_SECRET=<rastgele-uzun-string>
-   INGEST_MAX_PER_RUN=3
+   INGEST_MAX_PER_RUN=6
    UNSPLASH_ACCESS_KEY=...   (opsiyonel)
    ```
 
@@ -193,7 +193,7 @@ CoreHUB, Vercel üzerinde sunucusuz ortamda çalışacak şekilde yapılandırı
 
 ### Otomatik güncelleme (Cron)
 
-[`vercel.json`](vercel.json) dosyası **6 saatte bir** `/api/cron/ingest` endpoint'ini tetikler. Vercel, `CRON_SECRET` tanımlıysa isteğe `Authorization: Bearer …` header'ı ekler.
+[`vercel.json`](vercel.json) dosyası **10 dakikada bir** `/api/cron/ingest` endpoint'ini tetikler (run başına en fazla 6 haber). Vercel, `CRON_SECRET` tanımlıysa isteğe `Authorization: Bearer …` header'ı ekler.
 
 Manuel test:
 
@@ -212,8 +212,8 @@ Başarılı yanıt örneği:
 
 | Plan | Cron sıklığı | Öneri |
 |------|--------------|-------|
-| **Hobby** | Günde en fazla ~1 kez | Daha sık güncelleme için [cron-job.org](https://cron-job.org) ile endpoint'i saatlik ping'le |
-| **Pro** | 6 saatte bir (veya daha sık) | `INGEST_MAX_PER_RUN=3`, `maxDuration=300` ile rahat çalışır |
+| **Hobby** | Günde en fazla ~1 kez (10 dk schedule çalışmaz) | [cron-job.org](https://cron-job.org) ile **10 dk** ping + `INGEST_MAX_PER_RUN=6` |
+| **Pro** | 10 dakikada bir (`*/10 * * * *`) | `maxDuration=300` ile run başına 6 haber |
 
 ---
 
