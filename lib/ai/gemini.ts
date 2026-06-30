@@ -30,8 +30,11 @@ dengeli ve özgün bir Türkçe haber yaz. Kurallar:
 - "body": detay sayfası için KAPSAMLI ve DERİNLEMESİNE, 6-10 paragraflık özgün metin
   (olayın özü, arka plan, detaylar, ilgili taraflar, olası etkiler; paragrafları \\n\\n ile ayır).
 - ANTI-DOLGU: tekrar ve boş/klişe cümle kurma. Her paragraf YENİ bilgi katsın; sadece
-  uzatmak için yazma. Kaliteyi uzunluğa feda etme. Haberi öğüt/öneri/temenni cümlesiyle
-  ("değerlendirilmeli", "takip edilmeli" gibi) BİTİRME; olgularla bitsin.
+  uzatmak için yazma. Kaliteyi uzunluğa feda etme.
+- SOMUT DETAY: Kaynaklarda kadro/ilk 11, skor, maç saati, yayın kanalı veya resmi link
+  geçiyorsa gövdede NET yaz. Kaynakta yoksa başlıkta vaat etme ('kadrolar açıklandı'
+  deyip listelememe; 'canlı link' deyip link yazmama).
+- Haberi öğüt/öneri/temenni cümlesiyle ("değerlendirilmeli", "takip edilmeli" gibi) BİTİRME; olgularla bitsin.
 - "imageQuery": konuyu temsil eden 2-4 kelimelik İNGİLİZCE görsel anahtar kelime.
 - Çıktıyı SADECE şu JSON formatında ver:
   {"title": "...", "category": "...", "summary": "...", "body": "...", "imageQuery": "...", "divergenceNote": "...", "perspectives": [{"source": "...", "framing": "..."}]}`;

@@ -179,6 +179,10 @@ should always describe the _current_ reality.
 
 ## 13. Changelog
 
+- **2026-07-01** — **Stronger event dedup.** `cluster.ts` merges sports pairs (Fransa–İsveç),
+  post-clusters similar groups, skips ingest when title matches existing article, cleans
+  duplicate cards in store on each run. AI prompt: pass lineup/broadcast facts only when
+  sources contain them.
 - **2026-06-30** — **`data/articles.json` gitignored.** Local ingest output no longer
   tracked in git; production store is Vercel Blob only. Repo delete of the file is intentional
   (file remains on disk after `npm run ingest`).

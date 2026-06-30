@@ -2,7 +2,7 @@ import crypto from "crypto";
 import Parser from "rss-parser";
 import { FEEDS, googleNewsSearchFeed, type Feed } from "@/lib/sources/feeds";
 import { fetchTrendingTopics } from "@/lib/sources/trends";
-import { clusterItems } from "@/lib/sources/cluster";
+import { clusterItems, mergeSimilarClusters, representativeTitle, sameEventTitles } from "@/lib/sources/cluster";
 import { fetchArticlePage } from "@/lib/sources/fulltext";
 import { getAIProvider } from "@/lib/ai";
 import { fetchImage } from "@/lib/images/unsplash";
@@ -93,6 +93,51 @@ function stripHtml(s: string): string {
 const FILLER_RE =
   /(iletişime geç|takip (edilmeli|etmek|edilmesi)|değerlendiril(meli|mesi)|önlem(ler)? al[ıi]n|daha fazla bilgi için|en uygun ol(acak|ur)|gözden geçiril|önemini .{0,20}(vurgula|göster|ortaya koy|hat[ıi]rlat|kan[ıi]tl)|göz önünde bulundur|dikkat çek|merakla beklen)/i;
 
+function dedupeByLink(candidates: Candidate[]): Candidate[] {
+  const seen = new Set<string>();
+  return candidates.filter((c) => {
+    if (seen.has(c.link)) return false;
+    seen.add(c.link);
+    return true;
+  });
+}
+
+function isDuplicateEvent(title: string, articles: Article[]): Article | undefined {
+  return articles.find((a) => sameEventTitles(title, a.title));
+}
+
+/** Depodaki aynı-olay çiftlerini birleştirir (kaynakları toplar, tek kart bırakır). */
+function dedupeArticleStore(articles: Article[]): { articles: Article[]; removed: number } {
+  const kept: Article[] = [];
+  let removed = 0;
+
+  for (const a of articles) {
+    const match = kept.find((k) => sameEventTitles(k.title, a.title));
+    if (!match) {
+      kept.push({ ...a, sources: [...a.sources] });
+      continue;
+    }
+
+    removed++;
+    const urls = new Set(match.sources.map((s) => s.url));
+    for (const s of a.sources) {
+      if (!urls.has(s.url)) {
+        match.sources.push(s);
+        urls.add(s.url);
+      }
+    }
+    if (a.body.length > match.body.length) {
+      match.summary = a.summary;
+      match.body = a.body;
+    }
+    if (a.sources.length > match.sources.length) {
+      match.title = a.title;
+    }
+  }
+
+  return { articles: kept, removed };
+}
+
 function cleanBody(body: string): string {
   const paras = body.split("\n\n").map((p) => p.trim()).filter(Boolean);
   for (let k = 0; k < 2 && paras.length > 2; k++) {
@@ -153,7 +198,14 @@ async function collectCandidates(
 export async function runIngest(): Promise<IngestResult> {
   const messages: string[] = [];
 
-  const existing = await loadArticles();
+  let existing = await loadArticles();
+  const { articles: deduped, removed: dupRemoved } = dedupeArticleStore(existing);
+  if (dupRemoved > 0) {
+    existing = deduped;
+    await saveArticles(existing);
+    messages.push(`🧹 Depoda ${dupRemoved} yinelenen haber birleştirildi (toplam ${existing.length}).`);
+  }
+
   const seen = new Set(existing.map((a) => a.id));
 
   const ageDays = maxAgeDays();
@@ -184,7 +236,8 @@ export async function runIngest(): Promise<IngestResult> {
   });
   messages.push(`Toplam ${candidates.length} aday haber toplandı.`);
 
-  const clusters = clusterItems(candidates);
+  const rawClusters = clusterItems(candidates);
+  const clusters = mergeSimilarClusters(rawClusters).map(dedupeByLink);
   const multi = clusters.filter((c) => c.length > 1).length;
   const multiClusters = clusters.filter((c) => c.length > 1);
   const singleClusters = clusters.filter((c) => c.length === 1);
@@ -207,6 +260,13 @@ export async function runIngest(): Promise<IngestResult> {
     const id = idFor(links);
     if (seen.has(id)) continue;
 
+    const repTitle = representativeTitle(cluster);
+    const dupExisting = isDuplicateEvent(repTitle, [...existing, ...fresh]);
+    if (dupExisting) {
+      messages.push(`↷ Atlandı (aynı olay): '${repTitle.slice(0, 60)}…' ≈ '${dupExisting.title.slice(0, 60)}…'`);
+      continue;
+    }
+
     try {
       const pages = await Promise.all(cluster.map((c) => fetchArticlePage(c.link)));
       const items = cluster.map((c, i) => ({
@@ -217,6 +277,12 @@ export async function runIngest(): Promise<IngestResult> {
       const youtubeId = pages.find((p) => p.youtubeId)?.youtubeId ?? undefined;
 
       const out = await ai.synthesize({ items });
+
+      const dupAfterAi = isDuplicateEvent(out.title, [...existing, ...fresh]);
+      if (dupAfterAi) {
+        messages.push(`↷ Atlandı (AI başlık çakışması): '${out.title.slice(0, 70)}…'`);
+        continue;
+      }
 
       const sourceImg = pickSourceImage(cluster, pages.map((p) => p.imageUrl));
       const unsplash = sourceImg ? null : await fetchImage(out.imageQuery);

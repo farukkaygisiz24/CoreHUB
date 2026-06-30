@@ -38,6 +38,9 @@ dengeli ve özgün bir Türkçe haber yaz. Kurallar:
 - ANTI-DOLGU: tekrar etme, boş/klişe cümle ("önemli bir gelişmedir, takip edilmelidir"
   gibi) kurma. Her paragraf YENİ bir bilgi veya bakış açısı katsın; sadece uzatmak için
   yazma. Bilgi yoksa uzatma — kaliteyi uzunluğa feda etme.
+- SOMUT DETAY: Kaynak metinlerinde kadro/ilk 11, skor, maç tarihi-saat, stadyum, yayın
+  kanalı veya resmi link geçiyorsa gövdede NET aktar. Kaynakta yoksa başlıkta vaat etme
+  (ör. 'kadrolar açıklandı' deyip liste vermeme; 'canlı yayın linki' deyip link yazmama).
 - Haberi ASLA öğüt/öneri/temenni cümlesiyle bitirme ("değerlendirilmeli", "önlemler
   alınmalı", "takip edilmeli", "iletişime geçmek en uygun olur" gibi). Haber olgularla
   bitsin, senin yorumun/tavsiyenle değil.
