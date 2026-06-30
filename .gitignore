@@ -39,6 +39,9 @@ vercel-import.env
 # vercel
 .vercel
 
+# local article store (production uses Vercel Blob)
+/data/articles.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
