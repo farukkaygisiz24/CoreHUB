@@ -9,7 +9,17 @@ export const dynamic = "force-dynamic";
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
-  return req.headers.get("authorization") === `Bearer ${secret}`;
+
+  const auth = req.headers.get("authorization");
+  if (auth === `Bearer ${secret}`) return true;
+
+  // Vercel Cron bazen Authorization göndermez; resmi UA + schedule header ile doğrula
+  const ua = req.headers.get("user-agent") ?? "";
+  if (ua.includes("vercel-cron") && req.headers.get("x-vercel-cron-schedule")) {
+    return true;
+  }
+
+  return false;
 }
 
 export async function GET(req: NextRequest) {
