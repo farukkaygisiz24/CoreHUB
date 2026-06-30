@@ -1,14 +1,34 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { head, put } from "@vercel/blob";
+import { get, put } from "@vercel/blob";
 import type { Article, Category } from "./types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "articles.json");
 const BLOB_PATH = process.env.BLOB_ARTICLES_PATH ?? "corehub/articles.json";
 
+function blobToken(): string | undefined {
+  return process.env.BLOB_READ_WRITE_TOKEN;
+}
+
 function useBlob(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(blobToken());
+}
+
+/** Vercel private store varsayılan; public store için BLOB_ACCESS=public */
+function blobAccess(): "public" | "private" {
+  return process.env.BLOB_ACCESS === "public" ? "public" : "private";
+}
+
+async function streamToText(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString("utf-8");
 }
 
 function sortArticles(articles: Article[]): Article[] {
@@ -19,10 +39,13 @@ function sortArticles(articles: Article[]): Article[] {
 
 async function loadFromBlob(): Promise<Article[]> {
   try {
-    const meta = await head(BLOB_PATH, { token: process.env.BLOB_READ_WRITE_TOKEN });
-    const res = await fetch(meta.url, { cache: "no-store" });
-    if (!res.ok) return [];
-    return JSON.parse(await res.text()) as Article[];
+    const result = await get(BLOB_PATH, {
+      access: blobAccess(),
+      token: blobToken(),
+    });
+    if (!result || result.statusCode !== 200 || !result.stream) return [];
+    const text = await streamToText(result.stream);
+    return JSON.parse(text) as Article[];
   } catch {
     return [];
   }
@@ -31,8 +54,8 @@ async function loadFromBlob(): Promise<Article[]> {
 async function saveToBlob(articles: Article[]): Promise<void> {
   const sorted = sortArticles(articles);
   await put(BLOB_PATH, JSON.stringify(sorted, null, 2), {
-    access: "public",
-    token: process.env.BLOB_READ_WRITE_TOKEN,
+    access: blobAccess(),
+    token: blobToken(),
     addRandomSuffix: false,
     allowOverwrite: true,
     contentType: "application/json",
